@@ -2,10 +2,8 @@ import asyncio
 import os
 import sys
 import argparse
-import re
 import smtplib
 import ssl
-import json
 
 import aiohttp
 from dotenv import load_dotenv
@@ -101,92 +99,37 @@ async def main(room_url: str, token: str):
 
         @transport.event_handler("on_participant_left")
         async def on_participant_left(transport, participant, reason):
-            try:
-                logger.info("Participant left; queuing EndFrame and sending lead summary email...")
-                await task.queue_frame(EndFrame())
-                logger.info("Summarizing transcript with LLM...")
-                lead = await summarize_with_llm(context.messages)
-                subject = "New Lead: We Buy Houses"
-                body = format_email(lead)
-                await asyncio.to_thread(send_email, subject, body)
-                logger.info("Lead summary email sent")
-            except Exception as e:
-                logger.error(f"Failed in on_participant_left: {e}")
+            await task.queue_frame(EndFrame())
+            
+            # Get raw transcript
+            transcript = "\n".join([
+                f"{m.get('role', '')}: {m.get('content', '')}" 
+                for m in context.messages
+            ])
+            
+            # AI writes the email directly from transcript
+            email_body = await write_email_from_transcript(transcript)
+            
+            # Send it
+            await asyncio.to_thread(send_email, "New Lead: We Buy Houses", email_body)
 
-        async def summarize_with_llm(all_messages):
-            # Build a raw transcript from all turns for better context
-            turns = []
-            for m in all_messages:
-                role = m.get("role", "")
-                content = m.get("content", "")
-                if isinstance(content, list):
-                    content = " ".join([c.get("text", "") if isinstance(c, dict) else str(c) for c in content])
-                turns.append(f"{role}: {content}")
-            transcript_text = "\n".join(turns)
-
+        async def write_email_from_transcript(transcript):
             client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            system = (
-                "You are an expert sales assistant that extracts structured lead details from a full conversation transcript. "
-                "Return ONLY valid JSON with these fields: address, condition, reason, timeline, asking_price, occupancy, next_step, meeting_time_proposal, seller_name. "
-                "Keep values short and natural."
+            resp = await client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are writing an email about a new lead from a phone conversation. Include the property address, condition, reason for selling, timeline, asking price, meeting time if discussed, and any other relevant details. Write it in a clear, professional email format."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Write an email about this conversation:\n\n{transcript}"
+                    }
+                ],
+                temperature=0.2,
             )
-            user = (
-                "Transcript:\n" + transcript_text +
-                "\n\nExtract the fields. If unknown, use an empty string."
-            )
-            try:
-                resp = await client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user},
-                    ],
-                    temperature=0.2,
-                )
-                content = resp.choices[0].message.content or "{}"
-                # Ensure we parse JSON even if model wrapped in code fences
-                content = content.strip()
-                if content.startswith("```)" ):
-                    content = content.strip("`\n")
-                try:
-                    data = json.loads(content)
-                except Exception:
-                    # Fallback: find first JSON object
-                    match = re.search(r"\{[\s\S]*\}", content)
-                    data = json.loads(match.group(0)) if match else {}
-            except Exception as e:
-                logger.error(f"LLM summary failed: {e}")
-                data = {}
-
-            return {
-                "address": data.get("address", ""),
-                "condition": data.get("condition", ""),
-                "reason": data.get("reason", ""),
-                "timeline": data.get("timeline", ""),
-                "asking_price": data.get("asking_price", ""),
-                "occupancy": data.get("occupancy", ""),
-                "next_step": data.get("next_step", ""),
-                "meeting_time_proposal": data.get("meeting_time_proposal", ""),
-                "seller_name": data.get("seller_name", ""),
-                "transcript": transcript_text,
-            }
-
-        def format_email(lead):
-            lines = [
-                "Congrats! We have a new qualified seller lead.",
-                "",
-                f"Address: {lead['address'] or 'n/a'}",
-                f"Condition: {lead['condition'] or 'n/a'}",
-                f"Reason for selling: {lead['reason'] or 'n/a'}",
-                f"Timeline: {lead['timeline'] or 'n/a'}",
-                f"Asking price: {lead['asking_price'] or 'n/a'}",
-                f"Occupancy: {lead['occupancy'] or 'n/a'}",
-                f"Meeting time: {lead.get('meeting_time_proposal') or 'n/a'}",
-                "",
-                "Next step:",
-                lead.get("next_step") or "Book a 10-minute call with Jimmy to review details and prepare offer.",
-            ]
-            return "\n".join(lines)
+            return resp.choices[0].message.content or "New lead from conversation."
 
         def send_email(subject: str, body: str):
             smtp_user = os.getenv("SMTP_USER", os.getenv("EMAIL_FROM", "james@akapulu.com"))
@@ -202,8 +145,6 @@ async def main(room_url: str, token: str):
                 if smtp_user and smtp_pass:
                     server.login(smtp_user, smtp_pass)
                 server.sendmail(from_email, [to_email], msg.encode("utf-8"))
-
-        # Email sending handled in on_participant_left only to avoid duplication
 
         runner = PipelineRunner()
 
