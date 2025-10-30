@@ -62,7 +62,7 @@ Navigate to the quickstart directory and set up your environment.
 uv run bot.py
 ```
 
-**Open http://localhost:7860 in your browser** and click `Connect` to start talking to your bot.
+**Open http://localhost:7860 in your browser** and click `Start Session` to provision a Daily room and launch the worker. You'll get a room URL and token to join.
 
 > 💡 First run note: The initial startup may take ~20 seconds as Pipecat downloads required models and imports.
 
