@@ -3,38 +3,184 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pipecat Bot Runner</title>
+  <title>AI Wholesaling Assistant</title>
   <style>
-    body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; padding: 24px; }
-    button { padding: 10px 16px; font-size: 16px; cursor: pointer; }
-    .out { margin-top: 16px; white-space: pre-wrap; }
-    .row { margin-top: 8px; }
-    code { background: #f5f5f5; padding: 2px 4px; border-radius: 4px; }
+    :root {
+      --bg-start: #0b1220;
+      --bg-end: #112033;
+      --card: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.12);
+      --text: #e7eef7;
+      --muted: #b8c3d4;
+      --accent: #4f8cff;
+      --accent-2: #28a745;
+      --accent-3: #f0b429;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(80rem 60rem at 20% 10%, #193a6a 0%, transparent 55%),
+                  radial-gradient(60rem 50rem at 80% 10%, #1d4d2e 0%, transparent 50%),
+                  linear-gradient(180deg, var(--bg-start), var(--bg-end));
+      background-attachment: fixed;
+      display: grid;
+      place-items: center;
+      padding: 32px 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 980px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 28px;
+    }
+
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    .hero {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      width: fit-content;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+    .hero h1 { margin: 0; font-size: 40px; line-height: 1.1; }
+    .hero p { margin: 0; color: var(--muted); font-size: 16px; }
+
+    .cta-row { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+    .btn {
+      padding: 12px 18px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      transition: transform .06s ease, box-shadow .16s ease;
+      user-select: none;
+    }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-primary {
+      background: linear-gradient(180deg, var(--accent), #3d6ee0);
+      color: white;
+      box-shadow: 0 8px 18px rgba(79,140,255,.35);
+    }
+    .btn-primary:hover { transform: translateY(-1px); }
+    .btn-success {
+      background: linear-gradient(180deg, var(--accent-2), #218838);
+      color: white;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.06);
+      display: none;
+    }
+
+    .aside {
+      display: grid;
+      gap: 14px;
+    }
+    .check {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
+      align-items: start;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    .badge {
+      height: 28px; width: 28px; display: grid; place-items: center; border-radius: 8px;
+      background: rgba(40,167,69,.12); color: #7de2a7; border: 1px solid rgba(125,226,167,.25);
+      font-weight: 700;
+    }
+
+    .out { margin-top: 14px; color: var(--muted); min-height: 24px; }
+    footer { margin-top: 24px; color: var(--muted); font-size: 12px; text-align: center; }
   </style>
   <script>
     async function startSession() {
-      const btn = document.getElementById('start');
+      const startButton = document.getElementById('startButton');
+      const joinButton = document.getElementById('joinButton');
       const out = document.getElementById('out');
-      btn.disabled = true;
+      startButton.disabled = true;
       out.textContent = 'Starting session...';
       try {
         const res = await fetch('/start_bot', { method: 'POST' });
         if (!res.ok) throw new Error('Failed to start bot');
         const data = await res.json();
-        out.innerHTML = `\nRoom URL: <a href="${data.room_url}" target="_blank" rel="noreferrer">${data.room_url}</a>\nToken: <code>${data.token}</code>\n\nOpen the room URL in a new tab and use the token in your client that joins Daily.`;
+        joinButton.href = data.room_url;
+        out.textContent = 'Success! Your private room is ready.';
+        startButton.style.display = 'none';
+        joinButton.style.display = 'inline-block';
       } catch (e) {
         out.textContent = 'Error: ' + (e?.message || e);
-      } finally {
-        btn.disabled = false;
+        startButton.disabled = false;
       }
     }
   </script>
   </head>
   <body>
-    <h1>Pipecat Bot Runner</h1>
-    <p>Click to create a Daily room, launch the bot worker, and receive join info.</p>
-    <button id="start" onclick="startSession()">Start Session</button>
-    <div id="out" class="out"></div>
+    <div class="container">
+      <section class="card hero">
+        <span class="eyebrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3l8 4-8 4-8-4 8-4zm0 6l8 4-8 4-8-4 8-4zm0 6l8 4-8 4-8-4 8-4z" fill="currentColor" opacity=".7"/></svg>
+          AI Wholesaling Assistant
+        </span>
+        <h1>Get Your Cash Offer</h1>
+        <p>Click the button below to speak with our AI-powered home specialist and <strong>instantly qualify your property for a cash offer consultation</strong>.</p>
+        <div class="cta-row">
+          <button id="startButton" class="btn btn-primary" onclick="startSession()">Talk to Specialist Now</button>
+          <a id="joinButton" href="#" target="_blank" class="btn btn-success">Join Call Now</a>
+        </div>
+        <div id="out" class="out"></div>
+      </section>
+
+      <aside class="card aside">
+        <div class="check">
+          <span class="badge">1</span>
+          <div>
+            Share your property details with our specialist. We'll ask a few simple questions about your <strong>property's condition, your timeline, and your situation</strong>.
+          </div>
+        </div>
+        <div class="check">
+          <span class="badge">2</span>
+          <div>
+            <strong>Schedule a 10-minute call with our human specialist, Jimmy</strong>, who will personally review your information to prepare your offer.
+          </div>
+        </div>
+        <div class="check">
+          <span class="badge">3</span>
+          <div>
+            <strong>Get your no-obligation cash offer.</strong> After your call, Jimmy can provide a formal offer and discuss next steps, like a walkthrough.
+          </div>
+        </div>
+        <footer>Secure, private session • No commitment required</footer>
+      </aside>
+    </div>
   </body>
   </html>
 

@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Quickstart example for building voice AI bots with Pipecat"
 requires-python = ">=3.10"
 dependencies = [
-    "pipecat-ai[cartesia,daily,deepgram,elevenlabs,local-smart-turn-v3,openai,runner,silero,webrtc]",
+    "pipecat-ai[cartesia,daily,deepgram,elevenlabs,local-smart-turn-v3,openai,runner,silero,simli,webrtc]",
     "pipecat-ai-cli",
     "fastapi",
     "uvicorn",

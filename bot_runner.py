@@ -26,6 +26,8 @@ REQUIRED_ENV_VARS = [
     'OPENAI_API_KEY',
     'ELEVENLABS_API_KEY',
     'ELEVENLABS_VOICE_ID',
+    'SIMLI_API_KEY',
+    'SIMLI_FACE_ID',
 ]
 
 DAILY_API_KEY = os.getenv("DAILY_API_KEY", "")
@@ -74,11 +76,6 @@ async def root_page():
 
 @app.post("/start_bot")
 async def start_bot(request: Request) -> JSONResponse:
-    try:
-        data = await request.json()
-    except Exception as e:
-        pass
-
     # 1. Create a new Daily WebRTC room
     print(f"DEBUG: Creating room with DAILY_API_KEY: {DAILY_API_KEY[:10]}...", file=sys.stderr)
     headers = {
