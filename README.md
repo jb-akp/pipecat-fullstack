@@ -70,13 +70,13 @@ For lead notifications, configure SMTP settings:
 Start the bot runner:
 
 ```bash
-uv run bot_runner.py --host 127.0.0.1 --port 7860
+uv run backend/bot_runner.py --host 127.0.0.1 --port 7860
 ```
 
 Or with auto-reload for development:
 
 ```bash
-uv run bot_runner.py --host 127.0.0.1 --port 7860 --reload
+uv run backend/bot_runner.py --host 127.0.0.1 --port 7860 --reload
 ```
 
 **Open http://127.0.0.1:7860 in your browser** and click `Start Session` to provision a Daily room and launch the worker. You'll get a room URL and token to join.
@@ -95,9 +95,9 @@ uv run bot_runner.py --host 127.0.0.1 --port 7860 --reload
 
 ## Customization
 
-- **Bot personality**: Edit the system message in `bot.py` (line 75)
-- **Email format**: Modify the AI prompt in `write_email_from_transcript()` (line 116)
-- **Email subject**: Change the subject line in `on_participant_left()` (line 107)
+- **Bot personality**: Edit the system message in `backend/bot.py` (line 75)
+- **Email format**: Modify the AI prompt in `write_email_from_transcript()` in `backend/bot.py` (line 116)
+- **Email subject**: Change the subject line in `on_participant_left()` in `backend/bot.py` (line 107)
 
 ## Troubleshooting
 

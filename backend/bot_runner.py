@@ -56,7 +56,9 @@ app.add_middleware(
 )
 
 # Serve a minimal static frontend
-frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(backend_dir)
+frontend_dir = os.path.join(project_root, "frontend")
 os.makedirs(frontend_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
@@ -147,8 +149,12 @@ if __name__ == "__main__":
     config = parser.parse_args()
 
     try:
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+        
         uvicorn.run(
-            "bot_runner:app",
+            "backend.bot_runner:app",
             host=config.host,
             port=config.port,
             reload=config.reload
