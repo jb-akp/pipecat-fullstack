@@ -28,8 +28,8 @@ load_dotenv(override=True)
 logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
 
-daily_api_key = os.getenv("DAILY_API_KEY", "")
-daily_api_url = os.getenv("DAILY_API_URL", "https://api.daily.co/v1")
+daily_api_key = os.getenv("DAILY_API_KEY")
+daily_api_url = os.getenv("DAILY_API_URL")
 
 
 async def main(room_url: str, token: str):
@@ -54,8 +54,8 @@ async def main(room_url: str, token: str):
 
         tts = ElevenLabsTTSService(
             aiohttp_session=session,
-            api_key=os.getenv("ELEVENLABS_API_KEY", ""),
-            voice_id=os.getenv("ELEVENLABS_VOICE_ID", ""),
+            api_key=os.getenv("ELEVENLABS_API_KEY"),
+            voice_id=os.getenv("ELEVENLABS_VOICE_ID"),
         )
 
         llm = OpenAILLMService(
@@ -63,10 +63,9 @@ async def main(room_url: str, token: str):
             model="gpt-4o-mini"
         )
 
-        # Re-enable Simli avatar
         simli_config = SimliConfig(
-            apiKey=os.getenv("SIMLI_API_KEY", ""),
-            faceId=os.getenv("SIMLI_FACE_ID", ""),
+            apiKey=os.getenv("SIMLI_API_KEY"),
+            faceId=os.getenv("SIMLI_FACE_ID"),
         )
         simli_ai = SimliVideoService(simli_config)
 
@@ -85,7 +84,7 @@ async def main(room_url: str, token: str):
             context_aggregator.user(),
             llm,
             tts,
-            simli_ai,
+            # simli_ai,
             transport.output(),
             context_aggregator.assistant(),
         ])
@@ -101,14 +100,8 @@ async def main(room_url: str, token: str):
         async def on_participant_left(transport, participant, reason):
             await task.queue_frame(EndFrame())
             
-            # Get raw transcript
-            transcript = "\n".join([
-                f"{m.get('role', '')}: {m.get('content', '')}" 
-                for m in context.messages
-            ])
-            
-            # AI writes the email directly from transcript
-            email_body = await write_email_from_transcript(transcript)
+            # AI writes the email directly from raw messages
+            email_body = await write_email_from_transcript(str(context.messages))
             
             # Send it
             await asyncio.to_thread(send_email, "New Lead: We Buy Houses", email_body)
@@ -120,31 +113,29 @@ async def main(room_url: str, token: str):
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are writing an email about a new lead from a phone conversation. Include the property address, condition, reason for selling, timeline, asking price, meeting time if discussed, and any other relevant details. Write it in a clear, professional email format."
+                        "content": "You are writing an email to Jimmy (the specialist) about a new lead from a phone conversation. Do NOT include a subject line. Write TO Jimmy, summarizing the lead details. Include the property address, condition, reason for selling, timeline, asking price, meeting time if discussed, and any other relevant details. Do NOT use asterisks or markdown formatting. Do NOT include company name or contact information placeholders. Write it in a clear, professional email format."
                     },
                     {
                         "role": "user",
-                        "content": f"Write an email about this conversation:\n\n{transcript}"
+                        "content": f"Write an email to Jimmy about this conversation:\n{transcript}"
                     }
                 ],
                 temperature=0.2,
             )
-            return resp.choices[0].message.content or "New lead from conversation."
+            return resp.choices[0].message.content
 
         def send_email(subject: str, body: str):
-            smtp_user = os.getenv("SMTP_USER", os.getenv("EMAIL_FROM", "james@akapulu.com"))
-            smtp_pass = os.getenv("SMTP_PASS", "")
-            smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-            smtp_port = int(os.getenv("SMTP_PORT", "465"))
-            to_email = os.getenv("LEAD_NOTIFY_EMAIL", "jimmybradford55@yahoo.com")
-            from_email = smtp_user
+            smtp_user = os.getenv("SMTP_USER")
+            smtp_pass = os.getenv("SMTP_PASS")
+            smtp_host = os.getenv("SMTP_HOST")
+            smtp_port = int(os.getenv("SMTP_PORT"))
+            to_email = os.getenv("LEAD_NOTIFY_EMAIL")
 
-            msg = f"From: {from_email}\r\nTo: {to_email}\r\nSubject: {subject}\r\n\r\n{body}"
+            msg = f"From: {smtp_user}\r\nTo: {to_email}\r\nSubject: {subject}\r\n\r\n{body}"
             context = ssl.create_default_context()
             with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
-                if smtp_user and smtp_pass:
-                    server.login(smtp_user, smtp_pass)
-                server.sendmail(from_email, [to_email], msg.encode("utf-8"))
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, [to_email], msg.encode("utf-8"))
 
         runner = PipelineRunner()
 

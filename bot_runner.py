@@ -2,7 +2,6 @@ import os
 import argparse
 import subprocess
 import sys
-import traceback
 import time
 
 from fastapi import FastAPI, Request, HTTPException
@@ -30,7 +29,7 @@ REQUIRED_ENV_VARS = [
     'SIMLI_FACE_ID',
 ]
 
-DAILY_API_KEY = os.getenv("DAILY_API_KEY", "")
+DAILY_API_KEY = os.getenv("DAILY_API_KEY")
 DAILY_API_URL = os.getenv("DAILY_API_URL", "https://api.daily.co/v1")
 
 
@@ -38,14 +37,11 @@ DAILY_API_URL = os.getenv("DAILY_API_URL", "https://api.daily.co/v1")
 
 app = FastAPI()
 
-# Add exception handler to log errors
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    error_details = traceback.format_exc()
-    print(f"ERROR: {error_details}", file=sys.stderr)
     return JSONResponse(
         status_code=500,
-        content={"detail": str(exc), "traceback": error_details}
+        content={"detail": str(exc)}
     )
 
 # Add CORS middleware
@@ -67,122 +63,67 @@ app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 @app.get("/", response_class=HTMLResponse)
 async def root_page():
     index_path = os.path.join(frontend_dir, "index.html")
-    if os.path.exists(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(f.read())
-    return HTMLResponse("<h1>Pipecat Bot Runner</h1>")
+    with open(index_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read())
 
 # ----------------- Main ----------------- #
 
 @app.post("/start_bot")
 async def start_bot(request: Request) -> JSONResponse:
-    # 1. Create a new Daily WebRTC room
-    print(f"DEBUG: Creating room with DAILY_API_KEY: {DAILY_API_KEY[:10]}...", file=sys.stderr)
     headers = {
         "Authorization": f"Bearer {DAILY_API_KEY}",
         "Content-Type": "application/json"
     }
     
     async with httpx.AsyncClient() as client:
-        try:
-            # Create room
-            print(f"DEBUG: POSTing to {DAILY_API_URL}/rooms", file=sys.stderr)
-            response = await client.post(
-                f"{DAILY_API_URL}/rooms",
-                headers=headers,
-                json={"properties": {}}
-            )
-            print(f"DEBUG: Room creation response status: {response.status_code}", file=sys.stderr)
-            if response.status_code != 200:
-                error_detail = response.text
-                print(f"ERROR: Room creation failed: {response.status_code} - {error_detail}", file=sys.stderr)
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Unable to provision room: {response.status_code} - {error_detail}")
-            room_data = response.json()
-            room_url = room_data["url"]
-            room_name = room_data.get("name") or room_url.split("/")[-1]
-            print(f"DEBUG: Room created: {room_url}, name: {room_name}", file=sys.stderr)
-        except HTTPException as e:
-            print(f"ERROR: HTTPException in room creation: {e.detail}", file=sys.stderr)
-            raise
-        except Exception as e:
-            print(f"ERROR: Exception in room creation: {e}", file=sys.stderr)
-            print(f"ERROR: Traceback: {traceback.format_exc()}", file=sys.stderr)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Unable to provision room: {e}")
+        response = await client.post(
+            f"{DAILY_API_URL}/rooms",
+            headers=headers,
+            json={"properties": {}}
+        )
+        response.raise_for_status()
+        room_data = response.json()
+        room_url = room_data["url"]
+        room_name = room_data["name"]
 
-        # 2. Create bot token (owner)
-        try:
-            # exp should be a Unix timestamp, not a duration
-            exp_timestamp = int(time.time()) + MAX_SESSION_TIME
-            token_response = await client.post(
-                f"{DAILY_API_URL}/meeting-tokens",
-                headers=headers,
-                json={
-                    "properties": {
-                        "room_name": room_name,
-                        "exp": exp_timestamp,
-                        "is_owner": True
-                    }
+        exp_timestamp = int(time.time()) + MAX_SESSION_TIME
+        
+        token_response = await client.post(
+            f"{DAILY_API_URL}/meeting-tokens",
+            headers=headers,
+            json={
+                "properties": {
+                    "room_name": room_name,
+                    "exp": exp_timestamp,
+                    "is_owner": True
                 }
-            )
-            if token_response.status_code != 200:
-                error_detail = token_response.text
-                print(f"ERROR: Bot token creation failed: {token_response.status_code} - {error_detail}", file=sys.stderr)
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Unable to create bot token: {token_response.status_code} - {error_detail}")
-            bot_token = token_response.json()["token"]
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Unable to create bot token: {e}")
+            }
+        )
+        token_response.raise_for_status()
+        bot_token = token_response.json()["token"]
 
-        # 3. Create user token
-        try:
-            # exp should be a Unix timestamp, not a duration
-            exp_timestamp = int(time.time()) + MAX_SESSION_TIME
-            user_token_response = await client.post(
-                f"{DAILY_API_URL}/meeting-tokens",
-                headers=headers,
-                json={
-                    "properties": {
-                        "room_name": room_name,
-                        "exp": exp_timestamp,
-                        "is_owner": False
-                    }
+        user_token_response = await client.post(
+            f"{DAILY_API_URL}/meeting-tokens",
+            headers=headers,
+            json={
+                "properties": {
+                    "room_name": room_name,
+                    "exp": exp_timestamp,
+                    "is_owner": False
                 }
-            )
-            if user_token_response.status_code != 200:
-                error_detail = user_token_response.text
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Unable to create user token: {user_token_response.status_code} - {error_detail}")
-            user_token = user_token_response.json()["token"]
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Unable to create user token: {e}")
+            }
+        )
+        user_token_response.raise_for_status()
+        user_token = user_token_response.json()["token"]
 
-    # 4. Start bot worker subprocess
-    try:
-        runner_dir = os.path.dirname(os.path.abspath(__file__))
-        command = [
-            sys.executable,
-            "bot.py",
-            "-u", room_url,
-            "-t", bot_token,
-        ]
-        subprocess.Popen(command, cwd=runner_dir)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to start subprocess: {e}")
+    runner_dir = os.path.dirname(os.path.abspath(__file__))
+    command = [
+        sys.executable,
+        "bot.py",
+        "-u", room_url,
+        "-t", bot_token,
+    ]
+    subprocess.Popen(command, cwd=runner_dir)
 
     return JSONResponse({
         "room_url": room_url,
