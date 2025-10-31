@@ -84,7 +84,7 @@ async def main(room_url: str, token: str):
             context_aggregator.user(),
             llm,
             tts,
-            # simli_ai,
+            simli_ai,
             transport.output(),
             context_aggregator.assistant(),
         ])
