@@ -94,6 +94,14 @@ async def main(room_url: str, token: str):
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):
             await transport.capture_participant_transcription(participant["id"])
+            # Wait for Simli to be ready before starting conversation
+            if hasattr(simli_ai, '_simli_client'):
+                max_wait = 5.0  # Maximum 5 seconds
+                wait_interval = 0.1  # Check every 100ms
+                elapsed = 0.0
+                while not simli_ai._simli_client.ready and elapsed < max_wait:
+                    await asyncio.sleep(wait_interval)
+                    elapsed += wait_interval
             await task.queue_frames([LLMRunFrame()])
 
         @transport.event_handler("on_participant_left")
