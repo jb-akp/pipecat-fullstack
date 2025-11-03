@@ -28,10 +28,6 @@ load_dotenv(override=True)
 logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
 
-daily_api_key = os.getenv("DAILY_API_KEY")
-daily_api_url = os.getenv("DAILY_API_URL")
-
-
 async def main(room_url: str, token: str):
     async with aiohttp.ClientSession() as session:
         transport = DailyTransport(
@@ -39,8 +35,8 @@ async def main(room_url: str, token: str):
             token,
             "Alex | We Buy Houses",
             DailyParams(
-                api_url=daily_api_url,
-                api_key=daily_api_key,
+                api_url=os.getenv("DAILY_API_URL"),
+                api_key=os.getenv("DAILY_API_KEY"),
                 audio_in_enabled=True,
                 audio_out_enabled=True,
                 video_out_enabled=True,
