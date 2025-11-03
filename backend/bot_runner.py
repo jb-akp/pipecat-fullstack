@@ -29,9 +29,6 @@ REQUIRED_ENV_VARS = [
     'SIMLI_FACE_ID',
 ]
 
-DAILY_API_KEY = os.getenv("DAILY_API_KEY")
-DAILY_API_URL = os.getenv("DAILY_API_URL", "https://api.daily.co/v1")
-
 
 # ----------------- API ----------------- #
 
@@ -73,13 +70,15 @@ async def root_page():
 @app.post("/start_bot")
 async def start_bot(request: Request) -> JSONResponse:
     headers = {
-        "Authorization": f"Bearer {DAILY_API_KEY}",
+        "Authorization": f"Bearer {os.getenv('DAILY_API_KEY')}",
         "Content-Type": "application/json"
     }
     
+    daily_api_url = os.getenv("DAILY_API_URL", "https://api.daily.co/v1")
+    
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            f"{DAILY_API_URL}/rooms",
+            f"{daily_api_url}/rooms",
             headers=headers,
             json={"properties": {}}
         )
@@ -91,7 +90,7 @@ async def start_bot(request: Request) -> JSONResponse:
         exp_timestamp = int(time.time()) + MAX_SESSION_TIME
         
         token_response = await client.post(
-            f"{DAILY_API_URL}/meeting-tokens",
+            f"{daily_api_url}/meeting-tokens",
             headers=headers,
             json={
                 "properties": {
@@ -105,7 +104,7 @@ async def start_bot(request: Request) -> JSONResponse:
         bot_token = token_response.json()["token"]
 
         user_token_response = await client.post(
-            f"{DAILY_API_URL}/meeting-tokens",
+            f"{daily_api_url}/meeting-tokens",
             headers=headers,
             json={
                 "properties": {
