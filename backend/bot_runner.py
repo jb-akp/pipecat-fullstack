@@ -20,16 +20,6 @@ import httpx
 
 MAX_SESSION_TIME = 5 * 60
 
-REQUIRED_ENV_VARS = [
-    'DAILY_API_KEY',
-    'OPENAI_API_KEY',
-    'ELEVENLABS_API_KEY',
-    'ELEVENLABS_VOICE_ID',
-    'SIMLI_API_KEY',
-    'SIMLI_FACE_ID',
-]
-
-
 # ----------------- API ----------------- #
 
 app = FastAPI()
@@ -133,10 +123,6 @@ async def start_bot(request: Request) -> JSONResponse:
 
 
 if __name__ == "__main__":
-    for env_var in REQUIRED_ENV_VARS:
-        if env_var not in os.environ:
-            raise Exception(f"Missing environment variable: {env_var}.")
-
     parser = argparse.ArgumentParser(description="Pipecat Bot Runner")
     parser.add_argument("--host", type=str,
                         default=os.getenv("HOST", "0.0.0.0"), help="Host address")
