@@ -18,7 +18,6 @@ from pipecat.frames.frames import LLMRunFrame, EndFrame
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 from pipecat.services.simli.video import SimliVideoService
-from simli import SimliConfig
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from openai import AsyncOpenAI
@@ -59,11 +58,10 @@ async def main(room_url: str, token: str):
             model="gpt-4o-mini"
         )
 
-        simli_config = SimliConfig(
-            apiKey=os.getenv("SIMLI_API_KEY"),
-            faceId=os.getenv("SIMLI_FACE_ID"),
+        simli_ai = SimliVideoService(
+            api_key=os.getenv("SIMLI_API_KEY"),
+            face_id=os.getenv("SIMLI_FACE_ID"),
         )
-        simli_ai = SimliVideoService(simli_config)
 
         messages = [
             {
